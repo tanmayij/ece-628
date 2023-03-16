@@ -26,7 +26,7 @@ class MerkleTreeNode:
         self.hashValue = hashlib.sha3_224(str(value).encode('utf-8')).hexdigest()
 
 nodecount = 0
-def buildTree(leaves,f):
+def buildTree(leaves):
     nodes = []
     for i in leaves:
         nodes.append(MerkleTreeNode(i))
@@ -47,7 +47,7 @@ def buildTree(leaves,f):
             parent = MerkleTreeNode(concatenatedHash)
             parent.left = node1
             parent.right = node2
-            f.write("Parent(concatenation of "+ str(node1.value) + " and " + str(node2.value) + ") : " +str(parent.value) + " | Hash : " + str(parent.hashValue) +" \n")
+            #f.write("Parent(concatenation of "+ str(node1.value) + " and " + str(node2.value) + ") : " +str(parent.value) + " | Hash : " + str(parent.hashValue) +" \n")
             temp.append(parent)
         nodes = temp 
     return nodes[0]
@@ -90,5 +90,5 @@ def get_proof(self, index):
             return proof_result
 
 f = open("merkle.tree", "w")
-root = buildTree(leaves,f)
+root = buildTree(leaves)
 f.close()
