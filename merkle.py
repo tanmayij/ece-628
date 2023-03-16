@@ -52,31 +52,43 @@ def buildTree(leaves,f):
         nodes = temp 
     return nodes[0]
 
+def get_proof(self, index):
+        """
+        Generates the proof trail in a bottom-up fashion
+        """
+        if self.levels is None:
+            return None
 
-def retrieve_and_verify(data, root, leaves):
-    # Retrieve the leaf node corresponding to the data
-    leaf_index=
-    leaf = leaves[leaf_index]
+        # if merkle tree not complete or incorrect index
+        elif not self.complete or index > len(self.leaves)-1 or index < 0:
+            return None
+        else:
+            proof_result = []
+            no_of_levels = len(self.levels)
+            for x in range(no_of_levels - 1, 0, -1):
+                level_nodes = len(self.levels[x])
 
-    # Traverse up the tree from the leaf node to the root node, computing the hash value of each parent node
-    current_node = leaf
-    while current_node != root:
-        parent = current_node.left if current_node.right == None else MerkleTreeNode(str(current_node.left.hashValue) + str(current_node.right.hashValue))
-        current_node = parent
+                # skip if this is an odd end node
+                if (index == level_nodes - 1) and (level_nodes % 2 == 1):
+                    index = int(index / 2.)
 
-    # Compare the final computed root hash value with the expected root hash value
-    expected_root_hash = root.hashValue
-    actual_root_hash = current_node.hashValue
-    if expected_root_hash == actual_root_hash:
-        print("Data is verified to be part of the Merkle tree.")
-    else:
-        print("Data is not part of the Merkle tree.")
+                # if mod 2 = 0 , an even index , hashed with right sibling else with left
+                # checks if the merkle_node is the left sibling or the right sibling
+                Right_node = index % 2
+                if Right_node:
+                    sibIndex = index - 1
+                    sibPos = "left"
+                else:
+                    sibIndex = index + 1
+                    sibPos = "right"
 
-#inputString = sys.argv[1]
-#leaves = data
-#leaves = leavesString.split(",")
+                sibVal = self.convert_to_hex(
+                    self.levels[x][sibIndex])
+                proof_result.append({sibPos: sibVal})
+                # current node gets adjusted as we go up the merkle tree
+                index = int(index / 2.)
+            return proof_result
+
 f = open("merkle.tree", "w")
 root = buildTree(leaves,f)
-retrieve_and_verify(data, root, leaves)
-
 f.close()
