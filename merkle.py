@@ -91,4 +91,7 @@ def get_proof(self, index):
 
 f = open("merkle.tree", "w")
 root = buildTree(leaves)
+
+get_proof(data,7)
+
 f.close()
