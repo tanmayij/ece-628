@@ -14,10 +14,11 @@ random_numbers = [prng(bytes(str(i + 900), 'utf-8')) for i in range(n)]
 #print (random_numbers)
 #self.leaves = [self._hash((i+900) + data + str(si)) for i in range(n)]
 file1 = open("data.txt", "r")
-for i in file1:
-    data = str(i)
-
+for t in file1:
+    data = str(t)
+#print (data)
 leaves = [h(str(i + 900) + data + str(random_numbers[i])) for i in range(n)]
+#print (leaves[int(i)] % n)
 class MerkleTreeNode:
     def __init__(self,value):
         self.left = None
@@ -25,8 +26,7 @@ class MerkleTreeNode:
         self.value = value
         self.hashValue = hashlib.sha3_224(str(value).encode('utf-8')).hexdigest()
 
-nodecount = 0
-def buildTree(leaves):
+def buildTree(leaves,f):
     nodes = []
     for i in leaves:
         nodes.append(MerkleTreeNode(i))
@@ -40,58 +40,78 @@ def buildTree(leaves):
             else:
                 temp.append(nodes[i])
                 break
-            #print ("node a[", i, "][",i+1,"]")#hash value: ", node1.hashValue)
-            #f.write("Left child : "+ str(node1.value) + " | Hash : " + str(node1.hashValue) + " \n")
-            #f.write("Right child : "+ str(node2.value) + " | Hash : " + str(node2.hashValue) +" \n")
-            concatenatedHash = str(node1.hashValue) + str(node2.hashValue)
+            concatenatedHash = node1.hashValue + node2.hashValue
             parent = MerkleTreeNode(concatenatedHash)
             parent.left = node1
             parent.right = node2
-            #f.write("Parent(concatenation of "+ str(node1.value) + " and " + str(node2.value) + ") : " +str(parent.value) + " | Hash : " + str(parent.hashValue) +" \n")
+            f.write("Parent(concatenation of "+ str(node1.value) + " and " + str(node2.value) + ") : " +str(parent.value) + " | Hash : " + str(parent.hashValue) +" \n")
             temp.append(parent)
         nodes = temp 
     return nodes[0]
 
-def get_proof(self, index):
-        """
-        Generates the proof trail in a bottom-up fashion
-        """
-        if self.levels is None:
-            return None
+#retrieve the 7th node
+node_index = 6  # zero-based index
+node = None
 
-        # if merkle tree not complete or incorrect index
-        elif not self.complete or index > len(self.leaves)-1 or index < 0:
-            return None
-        else:
-            proof_result = []
-            no_of_levels = len(self.levels)
-            for x in range(no_of_levels - 1, 0, -1):
-                level_nodes = len(self.levels[x])
+# Traverse the Merkle tree to find the 7th node
+def traverse(node, index):
+    if node is None:
+        return None
+    if index == 0:
+        return node
+    left_size = get_tree_size(node.left)
+    if index <= left_size:
+        return traverse(node.left, index - 1)
+    else:
+        return traverse(node.right, index - left_size - 1)
 
-                # skip if this is an odd end node
-                if (index == level_nodes - 1) and (level_nodes % 2 == 1):
-                    index = int(index / 2.)
-
-                # if mod 2 = 0 , an even index , hashed with right sibling else with left
-                # checks if the merkle_node is the left sibling or the right sibling
-                Right_node = index % 2
-                if Right_node:
-                    sibIndex = index - 1
-                    sibPos = "left"
-                else:
-                    sibIndex = index + 1
-                    sibPos = "right"
-
-                sibVal = self.convert_to_hex(
-                    self.levels[x][sibIndex])
-                proof_result.append({sibPos: sibVal})
-                # current node gets adjusted as we go up the merkle tree
-                index = int(index / 2.)
-            return proof_result
-
+# Get the size of the subtree rooted at node
+def get_tree_size(node):
+    if node is None:
+        return 0
+    return 1 + get_tree_size(node.left) + get_tree_size(node.right)
 f = open("merkle.tree", "w")
-root = buildTree(leaves)
-
-get_proof(data,7)
-
+root = buildTree(leaves,f)
+#retrieve_and_verify(data, root, leaves)
 f.close()
+
+# Find the 7th node and retrieve its hash value and data
+node = traverse(root, node_index)
+if node is not None:
+    print("Hash value of 7th node:", node.hashValue)
+    print("Data of 7th node:", node.value)
+else:
+    print("Node not found")
+
+
+#Authenticate 7th node
+def authenticate_node(root_node, node_index, node_data, node_hash):
+    # Traverse the Merkle tree to find the 7th node
+    node = traverse(root_node, node_index)
+    if node is None:
+        return False
+
+    # Verify that the retrieved node has the expected data and hash value
+    if node.value != node_data or node.hashValue != node_hash:
+        return False
+
+    # Verify the path from the retrieved node to the root
+    path = []
+    current_node = node
+    while current_node is not None:
+        if current_node.left is not None and current_node.right is not None:
+            if current_node.left.value == node_data:
+                path.append(current_node.right.hashValue)
+            else:
+                path.append(current_node.left.hashValue)
+        current_node = current_node.parent
+    path.reverse()
+
+    current_hash = node.hashValue
+    for sibling_hash in path:
+        concatenated_hash = current_hash + sibling_hash
+        current_hash = hashlib.sha3_224(bytes.fromhex(concatenated_hash)).hexdigest()
+
+    # Verify that the computed root hash matches the actual root hash
+    if current_hash == root_node.hashValue:
+        print ("Data is verified")
