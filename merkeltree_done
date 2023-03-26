@@ -1,0 +1,235 @@
+import operator
+import math
+import hashlib
+import random
+
+leaf_count = 32
+def prng(seed):
+        return int(hashlib.sha3_224(b'\xff\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01' + seed).hexdigest(), 16)
+
+def dsa_security_analysis(p, q, g, h):
+    # p is a prime number, q is a prime number that divides p-1, and g is an integer modulo p with order q
+    # h is a hash function output that we want to sign
+    
+    # DSA parameters and hash function output size in bits
+    L = len(bin(p-1)) - 2
+    N = len(bin(q-1)) - 2
+    l = math.ceil(L/8)
+    n = math.ceil(N/8)
+    h_len = len(h) * 8
+    
+    # Check security conditions
+    if L < 1024:
+        print("WARNING: L < 1024, the security of DSA may be compromised.")
+    if N < 160:
+        print("WARNING: N < 160, the security of DSA may be compromised.")
+    if h_len > N:
+        print("ERROR: hash function output size is too large.")
+        return None
+    
+    # Calculate security strength and estimated security level
+    k = h_len // 2
+    L_est = 2*k if k >= N else N + k
+    if L_est >= 2048:
+        print("SECURITY: DSA is secure for the given parameters.")
+    elif L_est >= 1024:
+        print("WARNING: DSA security level is marginal.")
+    else:
+        print("ERROR: DSA security level is not sufficient.")
+    
+    return L_est
+
+class node:
+    def __init__(self, node_id, hashval, left_child, right_child, parent):
+        self.hashval = hashval
+        self.node_id = node_id
+        self.left_child = left_child
+        self.right_child = right_child
+        self.left_child_hash = []
+        self.right_child_hash = []
+        self.parent = parent
+
+
+class tree:
+    def __init__(self, n, leaves, layers, cntlayers):
+        self.n = 0
+        self.layers = []
+        self.leaves = []
+        self.cntlayers = 0
+        # create leaf nodes from the input string
+        for i in range(len(input_string)):
+            node_id = i
+            si = [prng(bytes(str(i + 900), 'utf-8'))] 
+            #si = random.randint(0, 1000) # generate a random number si
+            IDi = f"{node_id}j{si}"
+            hashval = hashlib.sha256(f"{IDi}{input_string[i]}".encode()).hexdigest() # create the hash of d with its identifier IDi and si
+            self.leaves.append(node(node_id, hashval, None, None, None))
+            self.n += 1
+        self.cntlayers = int(math.log(self.n, 2) + 1)
+        # update the hashval calculation for each leaf node
+        for leaf in self.leaves:
+            hashv1 = int(''.join(format(ord(x), 'b') for x in leaf.hashval))
+            hashv2 = int(''.join(format(ord(x), 'b') for x in f"{leaf.node_id}j{si}"))
+            temp = operator.xor(hashv1, hashv2)
+            leaf.hashval = hashlib.sha256(str(temp).encode()).hexdigest()
+    
+    
+    def getHashValue256(value):
+        i=index
+        node_id = i
+        si = [prng(bytes(str(i + 900), 'utf-8'))] 
+        #si = random.randint(0, 1000) # generate a random number si
+        IDi = f"{node_id}j{si}"
+        hashval = hashlib.sha256(f"{IDi}{input_string[i]}".encode()).hexdigest() # create the hash of d with its identifier IDi and si
+            
+        return hashval
+
+    def fill_leaf(self, node):
+        self.leaves.append(node)
+    
+    def generate_leaves(data):
+        leaves = []
+        for i in range(len(data)):
+            d = data[i]
+            IDi = i
+            si = random.randint(0, 2**32)
+            x = str(IDi) + str(d) + str(si)
+            h = hashlib.sha256(x.encode()).hexdigest()
+            leaves.append(node(i, h, None, None, None))
+        return leaves
+
+    def construct_layers(self):
+        i = 1
+        for i in range(self.cntlayers):
+            self.layers.append([])
+
+    def fill_leaves(self):
+        self.layers = self.layers + [self.leaves]
+
+    def build_tree(self):
+        self.fill_leaves()
+        self.construct_layers()
+        #build_tree
+        len_layer = int(self.n/2)
+        ctr = self.n #Node ID counter
+        for i in range(1,self.cntlayers):
+            if(len_layer==1):# Root Node
+                ctr = ctr +1 #Node ID counter
+                self.layers[i].append(node(ctr, 0, 0, 0, 0))
+                hashv1 = int(''.join(format(ord(x), 'b') for x in self.layers[i-1][0].hashval))
+                hashv2 = int(''.join(format(ord(x), 'b') for x in self.layers[i-1][1].hashval))
+                
+                temp = operator.xor(hashv1,hashv2)
+                self.layers[i][0].hashval = hashlib.sha256(str(temp).encode()).hexdigest()
+                self.layers[i][0].left_child = self.layers[i-1][0].node_id
+                self.layers[i][0].left_child_hash=hashlib.sha256(str(hashv1).encode()).hexdigest() 
+                self.layers[i][0].right_child = self.layers[i-1][1].node_id
+                self.layers[i][0].right_child_hash= hashlib.sha256(str(hashv2).encode()).hexdigest() 
+                self.layers[i-1][0].parent = ctr
+                self.layers[i-1][1].parent = ctr
+
+            else: # Inner nodes
+                k=0
+                rng = len(self.layers[i-1]) # Child layer length
+                for j in range(len_layer):
+                    if k < rng:
+                        ctr = ctr +1 #Node ID counter
+                        self.layers[i].append(node(ctr, 0, 0, 0, 0))
+                        hashv1 = int(''.join(format(ord(x), 'b') for x in self.layers[i-1][k].hashval))   #left child
+                        hashv2 = int(''.join(format(ord(x), 'b') for x in self.layers[i-1][k+1].hashval))  #right child
+                        temp = operator.xor(hashv1,hashv2)
+                        # (SHA256.new(str(temp).encode())).hexdigest()
+                        self.layers[i][j].hashval = hashlib.sha256(str(temp).encode()).hexdigest()
+                        self.layers[i][j].left_child = self.layers[i-1][k].node_id
+                        self.layers[i][j].left_child_hash= hashlib.sha256(str(hashv1).encode()).hexdigest() 
+                        self.layers[i][j].right_child = self.layers[i-1][k+1].node_id
+                        self.layers[i][j].right_child_hash= hashlib.sha256(str(hashv2).encode()).hexdigest() 
+                        self.layers[i-1][k].parent = ctr
+                        self.layers[i-1][k+1].parent = ctr
+                        k = k+2
+                len_layer = int(len_layer/2)
+
+    def find_root(self):
+        return self.layers[self.cntlayers-1][0].hashval
+
+    def print_tree(self):
+        for i in range(self.cntlayers):
+            for j in range(len(self.layers[i])):
+                print('Node id:',self.layers[i][j].node_id, 'Hash value:',self.layers[i][j].hashval,'| Left child  value:', (self.layers[i][j].left_child_hash),'| Right  child  value:', self.layers[i][j].right_child_hash, '| Parent hash value:',self.layers[i][j].parent)
+                print('*****')
+
+    def find_node_from_id(self, node_id):
+        for i in range(self.cntlayers):
+            for j in range(len(self.layers[i])):
+                temp = self.layers[i][j].node_id
+                if (temp == node_id):
+                    return self.layers[i][j]
+
+    def find_path(self, node_id):
+        path = []
+        pivot = self.find_node_from_id(node_id)
+        for i in range(self.cntlayers):
+            parent = 0
+            for j in range(len(self.layers[i])):
+                if(pivot.parent == self.layers[i][j].node_id):
+                    parent = self.layers[i][j]
+                    if parent.left_child == pivot.node_id:
+                        path.append(self.find_node_from_id(parent.right_child).hashval)
+                    else:
+                        path.append(self.find_node_from_id(parent.left_child).hashval)
+                    pivot = parent
+        return path
+
+
+
+def root_from_path(path, node_hash):
+    root = node_hash
+    for i in range(len(path)):
+        hashv1 = int(''.join(format(ord(x), 'b') for x in path[i]))
+        hashv2 = int(''.join(format(ord(x), 'b') for x in root))
+        temp = operator.xor(hashv1, hashv2)
+        root = hashlib.sha256(str(temp).encode()).hexdigest()
+    return root
+
+
+
+input_string = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce vel ex sapien. Integer commodo, mauris non vestibulum euismod, nunc libero elementum ipsum, a dignissim lacus nunc quis nisi. Nam commodo quam lectus, at eleifend nulla bibendum eget. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; Maecenas nec orci vel nulla bibendum congue eu id libero. Ut vel arcu faucibus, bibendum justo non, blandit urna. Sed dictum viverra metus, in rhoncus dolor efficitur eu. Maecenas vulputate eu leo id iaculis. Aenean tincidunt sapien eu est imperdiet, eu accumsan mi pharetra. Nam feugiat vulputate mi, eget faucibus odio pharetra sed. Integer euismod ipsum sit amet mauris tristique varius. Praesent sollicitudin, enim vitae ullamcorper faucibus, nibh lectus gravida est, a luctus dolor orci quis dolor. Duis et justo non quam eleifend efficitur sit amet sit amet velit. Sed ut pulvinar sapien. Sed sagittis enim ut venenatis congue. Integer ut libero augue. Aenean pretium sagittis risus, ut pretium elit feugiat eget. Phasellus in aliquet mi. Suspendisse nec arcu nulla. Sed vitae lacus vel augue pharetra ultrices. Vestibulum rhoncus finibus augue vel dapibus. Proin a justo risus. Nunc sed augue id lacus sollicitudin scelerisque vel at urna. Nullam varius elementum diam, eu feugiat massa consectetur vel. Curabitur convallis ultrices lacus, at accumsan ipsum volutpat eget. Aenean scelerisque orci vel felis volutpat, sit amet iaculis risus semper. Integer vestibulum mi a ante pellentesque, non commodo libero sollicitudin. Sed tempor arcu eget enim rutrum, sed eleifend turpis fringilla. Nullam vitae odio elit. Nullam in nunc libero. Fusce laoreet, enim vel auctor vehicula, lectus nibh elementum est, eget pharetra sapien odio ac metus. Sed euismod nisl felis, sit amet congue lacus imperdiet ac. Pellentesque ac ipsum eu nunc lacinia aliquet. Donec commodo lobortis ipsum, eu bibendum velit commodo ac. Sed euismod sapien lacus, vel consectetur metus dictum vitae. Sed vestibulum scelerisque velit, sed hendrerit nulla bibendum vitae. Phasellus hendrerit, turpis eu dictum consectetur, magna quam luctus odio, id commodo velit velit id quam. Sed feugiat nulla et sem commodo, ut venenatis odio imperdiet. Suspendisse faucibus est sed odio lacinia consectetur. Quisque sed fringilla mi. Sed fermentum eget libero sit amet mollis. Sed luctus nulla ut tortor faucibus, vel consequat purus accumsan"
+t = tree(input_string,[],[],0)
+t.build_tree()
+root = t.find_root()
+#node_id = random.randrange(7)
+node_id=7
+node_hash = t.find_node_from_id(node_id).hashval
+path = t.find_path(node_id)
+found_root = root_from_path(path,node_hash)
+
+
+print("\n************************************************************************************")
+print("***************************** Merkle tree with "+ str(leaf_count) +" leaves ****************************")
+print("************************************************************************************")
+t.print_tree()
+print("************************************************************************************")
+print("************************************************************************************\n")
+print("Root of the Merkle tree ************************************************************")
+print(root)
+print("************************************************************************************")
+print("************************************************************************************\n")
+print("Node hash of the node with id "+str(node_id)+ " ****************************************************")
+print(node_hash)
+print("************************************************************************************")
+print("************************************************************************************\n")
+print("Path of the node with id "+str(node_id)+ " *********************************************************")
+for i in path:
+    print(i)
+print("************************************************************************************")
+print("************************************************************************************\n")
+print("Found root with path and hash of the node with id "+str(node_id)+ " ********************************")
+print(found_root)
+print("************************************************************************************")
+print("************************************************************************************\n")
+
+if(found_root == root):
+    print("DATA NOT TAMPERED")
+else:
+    #the user will reject d and search d from some other node
+    print("DATA  TAMPERED")
