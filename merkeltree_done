@@ -2,42 +2,13 @@ import operator
 import math
 import hashlib
 import random
+from Crypto.PublicKey import DSA
+from Crypto.Signature import DSS
+from Crypto.Hash import SHA256
 
 leaf_count = 32
 def prng(seed):
         return int(hashlib.sha3_224(b'\xff\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01' + seed).hexdigest(), 16)
-
-def dsa_security_analysis(p, q, g, h):
-    # p is a prime number, q is a prime number that divides p-1, and g is an integer modulo p with order q
-    # h is a hash function output that we want to sign
-    
-    # DSA parameters and hash function output size in bits
-    L = len(bin(p-1)) - 2
-    N = len(bin(q-1)) - 2
-    l = math.ceil(L/8)
-    n = math.ceil(N/8)
-    h_len = len(h) * 8
-    
-    # Check security conditions
-    if L < 1024:
-        print("WARNING: L < 1024, the security of DSA may be compromised.")
-    if N < 160:
-        print("WARNING: N < 160, the security of DSA may be compromised.")
-    if h_len > N:
-        print("ERROR: hash function output size is too large.")
-        return None
-    
-    # Calculate security strength and estimated security level
-    k = h_len // 2
-    L_est = 2*k if k >= N else N + k
-    if L_est >= 2048:
-        print("SECURITY: DSA is secure for the given parameters.")
-    elif L_est >= 1024:
-        print("WARNING: DSA security level is marginal.")
-    else:
-        print("ERROR: DSA security level is not sufficient.")
-    
-    return L_est
 
 class node:
     def __init__(self, node_id, hashval, left_child, right_child, parent):
@@ -201,6 +172,28 @@ def root_from_path(path, node_hash):
         root = hashlib.sha256(str(temp).encode()).hexdigest()
     return root
 
+def dsa(input_string):
+    message=input_string
+    data_chunks = [message[i:i+7] for i in range(0, len(message), 7)]  #taking node 7
+    # Create Merkle tree from data chunks
+    t1 = tree(data_chunks,[],[],0)
+    t1.build_tree()
+    root_hash = t1.find_root()
+    # DSA digital signature generation
+    key = DSA.generate(2048)
+    h = SHA256.new(message)
+    signer = DSS.new(key, 'fips-186-3') 
+    signature = signer.sign(h)
+    # Send message, signature and root hash to recipient
+    # # DSA digital signature verification
+    verifier = DSS.new(key, 'fips-186-3')
+    verifier.verify(h, signature)
+    # Verify root hash to ensure message authenticity
+    recipient_root_hash = create_merkle_tree(data_chunks)
+    if recipient_root_hash == root_hash:
+        print("Message authentic")
+    else:
+        print("Message tampered with")
 
 
 input_string = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce vel ex sapien. Integer commodo, mauris non vestibulum euismod, nunc libero elementum ipsum, a dignissim lacus nunc quis nisi. Nam commodo quam lectus, at eleifend nulla bibendum eget. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; Maecenas nec orci vel nulla bibendum congue eu id libero. Ut vel arcu faucibus, bibendum justo non, blandit urna. Sed dictum viverra metus, in rhoncus dolor efficitur eu. Maecenas vulputate eu leo id iaculis. Aenean tincidunt sapien eu est imperdiet, eu accumsan mi pharetra. Nam feugiat vulputate mi, eget faucibus odio pharetra sed. Integer euismod ipsum sit amet mauris tristique varius. Praesent sollicitudin, enim vitae ullamcorper faucibus, nibh lectus gravida est, a luctus dolor orci quis dolor. Duis et justo non quam eleifend efficitur sit amet sit amet velit. Sed ut pulvinar sapien. Sed sagittis enim ut venenatis congue. Integer ut libero augue. Aenean pretium sagittis risus, ut pretium elit feugiat eget. Phasellus in aliquet mi. Suspendisse nec arcu nulla. Sed vitae lacus vel augue pharetra ultrices. Vestibulum rhoncus finibus augue vel dapibus. Proin a justo risus. Nunc sed augue id lacus sollicitudin scelerisque vel at urna. Nullam varius elementum diam, eu feugiat massa consectetur vel. Curabitur convallis ultrices lacus, at accumsan ipsum volutpat eget. Aenean scelerisque orci vel felis volutpat, sit amet iaculis risus semper. Integer vestibulum mi a ante pellentesque, non commodo libero sollicitudin. Sed tempor arcu eget enim rutrum, sed eleifend turpis fringilla. Nullam vitae odio elit. Nullam in nunc libero. Fusce laoreet, enim vel auctor vehicula, lectus nibh elementum est, eget pharetra sapien odio ac metus. Sed euismod nisl felis, sit amet congue lacus imperdiet ac. Pellentesque ac ipsum eu nunc lacinia aliquet. Donec commodo lobortis ipsum, eu bibendum velit commodo ac. Sed euismod sapien lacus, vel consectetur metus dictum vitae. Sed vestibulum scelerisque velit, sed hendrerit nulla bibendum vitae. Phasellus hendrerit, turpis eu dictum consectetur, magna quam luctus odio, id commodo velit velit id quam. Sed feugiat nulla et sem commodo, ut venenatis odio imperdiet. Suspendisse faucibus est sed odio lacinia consectetur. Quisque sed fringilla mi. Sed fermentum eget libero sit amet mollis. Sed luctus nulla ut tortor faucibus, vel consequat purus accumsan"
@@ -212,7 +205,7 @@ node_id=7
 node_hash = t.find_node_from_id(node_id).hashval
 path = t.find_path(node_id)
 found_root = root_from_path(path,node_hash)
-
+dsa(input_string)
 
 print("\n************************************************************************************")
 print("***************************** Merkle tree with "+ str(leaf_count) +" leaves ****************************")
