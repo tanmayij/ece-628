@@ -173,7 +173,7 @@ def root_from_path(path, node_hash):
     return root
 
 def dsa(input_string):
-    message=input_string
+    message= list(input_string)
     data_chunks = [message[i:i+7] for i in range(0, len(message), 7)]  #taking node 7
     # Create Merkle tree from data chunks
     t1 = tree(data_chunks,[],[],0)
@@ -181,7 +181,7 @@ def dsa(input_string):
     root_hash = t1.find_root()
     # DSA digital signature generation
     key = DSA.generate(2048)
-    h = SHA256.new(message)
+    h = SHA256.new(input_string.encode())
     signer = DSS.new(key, 'fips-186-3') 
     signature = signer.sign(h)
     # Send message, signature and root hash to recipient
@@ -189,7 +189,9 @@ def dsa(input_string):
     verifier = DSS.new(key, 'fips-186-3')
     verifier.verify(h, signature)
     # Verify root hash to ensure message authenticity
-    recipient_root_hash = create_merkle_tree(data_chunks)
+    t = tree(data_chunks,[],[],0)
+    t.build_tree()
+    recipient_root_hash=t.find_root()
     if recipient_root_hash == root_hash:
         print("Message authentic")
     else:
@@ -208,7 +210,7 @@ found_root = root_from_path(path,node_hash)
 dsa(input_string)
 
 print("\n************************************************************************************")
-print("***************************** Merkle tree with "+ str(leaf_count) +" leaves ****************************")
+print("***************************** Merkle tree using SHA "+ str(leaf_count) +" leaves ****************************")
 print("************************************************************************************")
 t.print_tree()
 print("************************************************************************************")
@@ -231,8 +233,13 @@ print(found_root)
 print("************************************************************************************")
 print("************************************************************************************\n")
 
+
 if(found_root == root):
     print("DATA NOT TAMPERED")
 else:
     #the user will reject d and search d from some other node
     print("DATA  TAMPERED")
+
+print("***************************** Merkle tree using DSA "+ str(leaf_count) +" leaves ****************************")
+
+dsa(input_string)
