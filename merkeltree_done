@@ -2,12 +2,7 @@ import operator
 import math
 import hashlib
 import random
-from graphviz import Digraph
-import os
-
-#from Crypto.PublicKey import DSA
-#from Crypto.Signature import DSS
-#from Crypto.Hash import SHA256
+import time
 import secrets
 leaf_count = 32
 def prng(seed):
@@ -28,7 +23,7 @@ class node:
 
 class tree:
     def __init__(self, n, leaves, layers, cntlayers):
-        self.n = 33  #leaf count
+        self.n = 32 #leaf count 
         self.layers = []
         self.leaves = []
         self.cntlayers = 0
@@ -37,31 +32,16 @@ class tree:
             node_id = i
             si = [prng(secrets.token_bytes(16))] 
             IDi = f"{node_id+900}j{si}"
-            hashval = hashlib.sha256(f"{IDi}{input_string}".encode()).hexdigest() # create the hash of d with its identifier IDi and si
+            hashval = hashlib.sha3_224(f"{IDi}{input_string}".encode()).hexdigest() # create the hash of d with its identifier IDi and si
             self.leaves.append(node(node_id, hashval, None, None, None))
-             
-        self.cntlayers = int(math.log(self.n, 2) + 1)
+            #self.n+=1
+        self.cntlayers = int(math.log(self.n,2)+ 1) #node count
         # update the hashval calculation for each leaf node
-        for leaf in self.leaves:
-            hashv1 = int(''.join(format(ord(x), 'b') for x in leaf.hashval))
-            hashv2 = int(''.join(format(ord(x), 'b') for x in f"{leaf.node_id}j{si}"))
-            temp = operator.xor(hashv1, hashv2)
-            leaf.hashval = hashlib.sha256(str(temp).encode()).hexdigest()
- 
+      
     def fill_leaf(self, node):
         self.leaves.append(node)
     
-    def generate_leaves(data):
-        leaves = []
-        for i in range(len(data)):
-            d = data[i]
-            IDi = i+900 #Identifier of data
-            si = random.randint(0, 2**32)
-            x = str(IDi) + str(d) + str(si)
-            h = hashlib.sha256(x.encode()).hexdigest()
-            leaves.append(node(i, h, None, None, None))
-        return leaves
-
+    
     def construct_layers(self):
         i = 1
         for i in range(self.cntlayers):
@@ -74,12 +54,9 @@ class tree:
         self.fill_leaves()
         self.construct_layers()
         #build_tree
-        #dot = graphviz.Digraph()
-        dot = Digraph(comment='Merkle Tree')
-        for i in range(33):
-            dot.node(str(i), str(i))
+    
         
-        len_layer = int(self.n/2)
+        len_layer = int(self.n)
         ctr = self.n #Node ID counter
         for i in range(1,self.cntlayers):
             if(len_layer==1):# Root Node
@@ -89,18 +66,16 @@ class tree:
                 hashv2 = int(''.join(format(ord(x), 'b') for x in self.layers[i-1][1].hashval))
              
                 temp = operator.xor(hashv1,hashv2)
-                self.layers[i][0].hashval = hashlib.sha256(str(temp).encode()).hexdigest()
+                self.layers[i][0].hashval = hashlib.sha3_224(str(temp).encode()).hexdigest()
                 self.layers[i][0].left_child = self.layers[i-1][0].node_id
-                self.layers[i][0].left_child_hash=hashlib.sha256(str(hashv1).encode()).hexdigest() 
-                dot.edge(str(self.layers[i][0].node_id), str(self.layers[i][0].left_child), label=self.layers[i][0].left_child_hash)
+                self.layers[i][0].left_child_hash=hashlib.sha3_224(str(hashv1).encode()).hexdigest() 
                 self.layers[i][0].right_child = self.layers[i-1][1].node_id
-                self.layers[i][0].right_child_hash= hashlib.sha256(str(hashv2).encode()).hexdigest() 
-                dot.edge(str(self.layers[i][0].node_id), str(self.layers[i][0].right_child), label=self.layers[i][0].right_child_hash)
+                self.layers[i][0].right_child_hash= hashlib.sha3_224(str(hashv2).encode()).hexdigest() 
 
                 self.layers[i-1][0].parent = ctr
-                self.layers[i-1][0].parent_hash = hashlib.sha256(str(ctr).encode()).hexdigest() 
+                self.layers[i-1][0].parent_hash = hashlib.sha3_224(str(ctr).encode()).hexdigest() 
                 self.layers[i-1][1].parent = ctr
-                self.layers[i-1][1].parent_hash = hashlib.sha256(str(ctr).encode()).hexdigest() 
+                self.layers[i-1][1].parent_hash = hashlib.sha3_224(str(ctr).encode()).hexdigest() 
                 
 
             else: # Inner nodes
@@ -114,22 +89,19 @@ class tree:
                         hashv2 = int(''.join(format(ord(x), 'b') for x in self.layers[i-1][k+1].hashval))  #right child
                         temp = operator.xor(hashv1,hashv2)
                         # (SHA256.new(str(temp).encode())).hexdigest()
-                        self.layers[i][j].hashval = hashlib.sha256(str(temp).encode()).hexdigest()
+                        self.layers[i][j].hashval = hashlib.sha3_224(str(temp).encode()).hexdigest()  #parent 
                         self.layers[i][j].left_child = self.layers[i-1][k].node_id
-                        self.layers[i][j].left_child_hash= hashlib.sha256(str(hashv1).encode()).hexdigest() 
-                        dot.edge(str(self.layers[i][j].node_id), str(self.layers[i][j].left_child), label=self.layers[i][j].left_child_hash)
+                        self.layers[i][j].left_child_hash= hashlib.sha3_224(str(hashv1).encode()).hexdigest() 
                         self.layers[i][j].right_child = self.layers[i-1][k+1].node_id
-                        self.layers[i][j].right_child_hash= hashlib.sha256(str(hashv2).encode()).hexdigest() 
-                        dot.edge(str(self.layers[i][j].node_id), str(self.layers[i][j].right_child), label=self.layers[i][j].right_child_hash)
+                        self.layers[i][j].right_child_hash= hashlib.sha3_224(str(hashv2).encode()).hexdigest() 
                         self.layers[i-1][k].parent = ctr
-                        self.layers[i-1][k].parent_hash = hashlib.sha256(str(ctr).encode()).hexdigest() 
+                        self.layers[i-1][k].parent_hash = hashlib.sha3_224(str(ctr).encode()).hexdigest() 
                         self.layers[i-1][k+1].parent = ctr
-                        self.layers[i-1][k+1].parent_hash = hashlib.sha256(str(ctr).encode()).hexdigest() 
+                        self.layers[i-1][k+1].parent_hash = hashlib.sha3_224(str(ctr).encode()).hexdigest() 
                         
                         k = k+2
                 
                 len_layer = int(len_layer/2)
-        dot.render('C:/Users/shwetha/Documents/output', format='png')
 
 
     def find_root(self):
@@ -138,8 +110,8 @@ class tree:
     def print_tree(self):
         for i in range(self.cntlayers):
             for j in range(len(self.layers[i])):
-                print('Node id:',self.layers[i][j].node_id, 'Hash value:',self.layers[i][j].hashval,'| Left child  value:', (self.layers[i][j].left_child_hash),'| Right  child  value:', self.layers[i][j].right_child_hash, '| Parent hash value:',self.layers[i][j].parent_hash)
-                print('*****')
+                print('Node id:',self.layers[i][j].node_id, 'Node Hash value:',self.layers[i][j].hashval,'| Left child  value:', (self.layers[i][j].left_child_hash),'| Right  child  value:', self.layers[i][j].right_child_hash,'| Parent Hash Value"',self.layers[i][j].parent_hash)
+            print('*****')
 
     def find_node_from_id(self, node_id):
         for i in range(self.cntlayers):
@@ -154,7 +126,7 @@ class tree:
         for i in range(self.cntlayers):
             parent = 0
             for j in range(len(self.layers[i])):
-                if(pivot.parent == self.layers[i][j].node_id):
+                if(pivot.parent == self.layers[i][j].node_id):  ############ not sure if good code
                     parent = self.layers[i][j]
                     if parent.left_child == pivot.node_id:
                         path.append(self.find_node_from_id(parent.right_child).hashval)
@@ -171,49 +143,22 @@ def root_from_path(path, node_hash):
         hashv1 = int(''.join(format(ord(x), 'b') for x in path[i]))
         hashv2 = int(''.join(format(ord(x), 'b') for x in root))
         temp = operator.xor(hashv1, hashv2)
-        root = hashlib.sha256(str(temp).encode()).hexdigest()
+        root = hashlib.sha3_224(str(temp).encode()).hexdigest()
     return root
 
-def dsa(input_string):
-    message= list(input_string)
-    data_chunks = [message[i:i+7] for i in range(0, len(message), 7)]  #taking node 7
-    # Create Merkle tree from data chunks
-    t1 = tree(data_chunks,[],[],0)
-    t1.build_tree()
-    root_hash = t1.find_root()
-    # DSA digital signature generation
-    key = DSA.generate(2048)
-    h = SHA256.new(input_string.encode())
-    signer = DSS.new(key, 'fips-186-3') 
-    signature = signer.sign(h)
-    # Send message, signature and root hash to recipient
-    # # DSA digital signature verification
-    verifier = DSS.new(key, 'fips-186-3')
-    verifier.verify(h, signature)
-    # Verify root hash to ensure message authenticity
-    t = tree(data_chunks,[],[],0)
-    t.build_tree()
-    recipient_root_hash=t.find_root()
-    if recipient_root_hash == root_hash:
-        print("Message authentic")
-    else:
-        print("Message tampered with")
-
-
 input_string = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce vel ex sapien. Integer commodo, mauris non vestibulum euismod, nunc libero elementum ipsum, a dignissim lacus nunc quis nisi. Nam commodo quam lectus, at eleifend nulla bibendum eget. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; Maecenas nec orci vel nulla bibendum congue eu id libero. Ut vel arcu faucibus, bibendum justo non, blandit urna. Sed dictum viverra metus, in rhoncus dolor efficitur eu. Maecenas vulputate eu leo id iaculis. Aenean tincidunt sapien eu est imperdiet, eu accumsan mi pharetra. Nam feugiat vulputate mi, eget faucibus odio pharetra sed. Integer euismod ipsum sit amet mauris tristique varius. Praesent sollicitudin, enim vitae ullamcorper faucibus, nibh lectus gravida est, a luctus dolor orci quis dolor. Duis et justo non quam eleifend efficitur sit amet sit amet velit. Sed ut pulvinar sapien. Sed sagittis enim ut venenatis congue. Integer ut libero augue. Aenean pretium sagittis risus, ut pretium elit feugiat eget. Phasellus in aliquet mi. Suspendisse nec arcu nulla. Sed vitae lacus vel augue pharetra ultrices. Vestibulum rhoncus finibus augue vel dapibus. Proin a justo risus. Nunc sed augue id lacus sollicitudin scelerisque vel at urna. Nullam varius elementum diam, eu feugiat massa consectetur vel. Curabitur convallis ultrices lacus, at accumsan ipsum volutpat eget. Aenean scelerisque orci vel felis volutpat, sit amet iaculis risus semper. Integer vestibulum mi a ante pellentesque, non commodo libero sollicitudin. Sed tempor arcu eget enim rutrum, sed eleifend turpis fringilla. Nullam vitae odio elit. Nullam in nunc libero. Fusce laoreet, enim vel auctor vehicula, lectus nibh elementum est, eget pharetra sapien odio ac metus. Sed euismod nisl felis, sit amet congue lacus imperdiet ac. Pellentesque ac ipsum eu nunc lacinia aliquet. Donec commodo lobortis ipsum, eu bibendum velit commodo ac. Sed euismod sapien lacus, vel consectetur metus dictum vitae. Sed vestibulum scelerisque velit, sed hendrerit nulla bibendum vitae. Phasellus hendrerit, turpis eu dictum consectetur, magna quam luctus odio, id commodo velit velit id quam. Sed feugiat nulla et sem commodo, ut venenatis odio imperdiet. Suspendisse faucibus est sed odio lacinia consectetur. Quisque sed fringilla mi. Sed fermentum eget libero sit amet mollis. Sed luctus nulla ut tortor faucibus, vel consequat purus accumsan"
+start_time = time.time()
 t = tree(input_string,[],[],0)
 t.build_tree()
-dot = graphviz.Digraph()
-# create directory to save file
-if not os.path.exists('output'):
-    os.makedirs('output')
-for i in range(33):
-    dot.node(str(i), str(i))
+end_time = time.time()
+merkle_time = end_time - start_time
 root = t.find_root()
 node_id=7
 node_hash = t.find_node_from_id(node_id).hashval
 path = t.find_path(node_id)
 found_root = root_from_path(path,node_hash)
+
+print("MERKLE TREE efficiency: {} seconds".format(merkle_time))
 
 print("\n************************************************************************************")
 print("***************************** Merkle tree using SHA "+ str(leaf_count) +" leaves ****************************")
@@ -246,6 +191,4 @@ else:
     #the user will reject d and search d from some other node
     print("DATA  TAMPERED")
 
-print("***************************** Merkle tree using DSA "+ str(leaf_count) +" leaves ****************************")
 
-#dsa(input_string)
