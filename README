@@ -1,5 +1,2 @@
 Things to do: 
-    1. Random 32-bit number generation
-    2. figure out ID[i]
-    3. push d into each node --> recheck this.
-    4. 
+  Auth verification and DSA implementation
