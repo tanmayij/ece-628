@@ -1,0 +1,39 @@
+from Crypto.PublicKey import DSA
+from Crypto.Signature import DSS
+from Crypto.Hash import SHA256
+
+# Generate a new DSA key pair
+key = DSA.generate(2048)  #112 bit security
+start_time = time.time()
+
+# Sign a message
+def sign(msg):
+    h = SHA256.new(msg)
+    signer = DSS.new(key, 'fips-186-3')
+    signature = signer.sign(h)
+    return signature
+
+# Verify a message
+def verify(msg, signature):
+    h = SHA256.new(msg)
+    verifier = DSS.new(key, 'fips-186-3')
+    try:
+        verifier.verify(h, signature)
+        return True
+    except ValueError:
+        return False
+
+# Example usage
+msg = b"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce vel ex sapien. Integer commodo, mauris non vestibulum euismod, nunc libero elementum ipsum, a dignissim lacus nunc quis nisi. Nam commodo quam lectus, at eleifend nulla bibendum eget. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; Maecenas nec orci vel nulla bibendum congue eu id libero. Ut vel arcu faucibus, bibendum justo non, blandit urna. Sed dictum viverra metus, in rhoncus dolor efficitur eu. Maecenas vulputate eu leo id iaculis. Aenean tincidunt sapien eu est imperdiet, eu accumsan mi pharetra. Nam feugiat vulputate mi, eget faucibus odio pharetra sed. Integer euismod ipsum sit amet mauris tristique varius. Praesent sollicitudin, enim vitae ullamcorper faucibus, nibh lectus gravida est, a luctus dolor orci quis dolor. Duis et justo non quam eleifend efficitur sit amet sit amet velit. Sed ut pulvinar sapien. Sed sagittis enim ut venenatis congue. Integer ut libero augue. Aenean pretium sagittis risus, ut pretium elit feugiat eget. Phasellus in aliquet mi. Suspendisse nec arcu nulla. Sed vitae lacus vel augue pharetra ultrices. Vestibulum rhoncus finibus augue vel dapibus. Proin a justo risus. Nunc sed augue id lacus sollicitudin scelerisque vel at urna. Nullam varius elementum diam, eu feugiat massa consectetur vel. Curabitur convallis ultrices lacus, at accumsan ipsum volutpat eget. Aenean scelerisque orci vel felis volutpat, sit amet iaculis risus semper. Integer vestibulum mi a ante pellentesque, non commodo libero sollicitudin. Sed tempor arcu eget enim rutrum, sed eleifend turpis fringilla. Nullam vitae odio elit. Nullam in nunc libero. Fusce laoreet, enim vel auctor vehicula, lectus nibh elementum est, eget pharetra sapien odio ac metus. Sed euismod nisl felis, sit amet congue lacus imperdiet ac. Pellentesque ac ipsum eu nunc lacinia aliquet. Donec commodo lobortis ipsum, eu bibendum velit commodo ac. Sed euismod sapien lacus, vel consectetur metus dictum vitae. Sed vestibulum scelerisque velit, sed hendrerit nulla bibendum vitae. Phasellus hendrerit, turpis eu dictum consectetur, magna quam luctus odio, id commodo velit velit id quam. Sed feugiat nulla et sem commodo, ut venenatis odio imperdiet. Suspendisse faucibus est sed odio lacinia consectetur. Quisque sed fringilla mi. Sed fermentum eget libero sit amet mollis. Sed luctus nulla ut tortor faucibus, vel consequat purus accumsan"
+signature = sign(msg)
+end_time = time.time()
+end1_time = end_time - start_time
+
+is_valid = verify(msg, signature)
+print("Signature:", signature)
+print("Is valid:", is_valid)
+#security = key.size() // 2
+
+
+print("DSA efficiency: {} seconds".format(end1_time))
+#print("DSA security: {} bits".format(security))
