@@ -2,10 +2,13 @@ import operator
 import math
 import hashlib
 import random
-from Crypto.PublicKey import DSA
-from Crypto.Signature import DSS
-from Crypto.Hash import SHA256
+from graphviz import Digraph
+import os
 
+#from Crypto.PublicKey import DSA
+#from Crypto.Signature import DSS
+#from Crypto.Hash import SHA256
+import secrets
 leaf_count = 32
 def prng(seed):
         return int(hashlib.sha3_224(b'\xff\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01' + seed).hexdigest(), 16)
@@ -25,19 +28,18 @@ class node:
 
 class tree:
     def __init__(self, n, leaves, layers, cntlayers):
-        self.n = 0
+        self.n = 33  #leaf count
         self.layers = []
         self.leaves = []
         self.cntlayers = 0
         # create leaf nodes from the input string
-        for i in range(len(input_string)):
+        for i in range(0,32):
             node_id = i
-            si = [prng(bytes(str(i + 900), 'utf-8'))] 
-            #si = random.randint(0, 1000) # generate a random number si
-            IDi = f"{node_id}j{si}"
-            hashval = hashlib.sha256(f"{IDi}{input_string[i]}".encode()).hexdigest() # create the hash of d with its identifier IDi and si
+            si = [prng(secrets.token_bytes(16))] 
+            IDi = f"{node_id+900}j{si}"
+            hashval = hashlib.sha256(f"{IDi}{input_string}".encode()).hexdigest() # create the hash of d with its identifier IDi and si
             self.leaves.append(node(node_id, hashval, None, None, None))
-            self.n += 1
+             
         self.cntlayers = int(math.log(self.n, 2) + 1)
         # update the hashval calculation for each leaf node
         for leaf in self.leaves:
@@ -45,18 +47,7 @@ class tree:
             hashv2 = int(''.join(format(ord(x), 'b') for x in f"{leaf.node_id}j{si}"))
             temp = operator.xor(hashv1, hashv2)
             leaf.hashval = hashlib.sha256(str(temp).encode()).hexdigest()
-    
-    
-    def getHashValue256(value):
-        i=index
-        node_id = i
-        si = [prng(bytes(str(i + 900), 'utf-8'))] 
-        #si = random.randint(0, 1000) # generate a random number si
-        IDi = f"{node_id}j{si}"
-        hashval = hashlib.sha256(f"{IDi}{input_string[i]}".encode()).hexdigest() # create the hash of d with its identifier IDi and si
-            
-        return hashval
-
+ 
     def fill_leaf(self, node):
         self.leaves.append(node)
     
@@ -64,7 +55,7 @@ class tree:
         leaves = []
         for i in range(len(data)):
             d = data[i]
-            IDi = i
+            IDi = i+900 #Identifier of data
             si = random.randint(0, 2**32)
             x = str(IDi) + str(d) + str(si)
             h = hashlib.sha256(x.encode()).hexdigest()
@@ -83,6 +74,11 @@ class tree:
         self.fill_leaves()
         self.construct_layers()
         #build_tree
+        #dot = graphviz.Digraph()
+        dot = Digraph(comment='Merkle Tree')
+        for i in range(33):
+            dot.node(str(i), str(i))
+        
         len_layer = int(self.n/2)
         ctr = self.n #Node ID counter
         for i in range(1,self.cntlayers):
@@ -91,13 +87,16 @@ class tree:
                 self.layers[i].append(node(ctr, 0, 0, 0, 0))
                 hashv1 = int(''.join(format(ord(x), 'b') for x in self.layers[i-1][0].hashval))
                 hashv2 = int(''.join(format(ord(x), 'b') for x in self.layers[i-1][1].hashval))
-                
+             
                 temp = operator.xor(hashv1,hashv2)
                 self.layers[i][0].hashval = hashlib.sha256(str(temp).encode()).hexdigest()
                 self.layers[i][0].left_child = self.layers[i-1][0].node_id
                 self.layers[i][0].left_child_hash=hashlib.sha256(str(hashv1).encode()).hexdigest() 
+                dot.edge(str(self.layers[i][0].node_id), str(self.layers[i][0].left_child), label=self.layers[i][0].left_child_hash)
                 self.layers[i][0].right_child = self.layers[i-1][1].node_id
                 self.layers[i][0].right_child_hash= hashlib.sha256(str(hashv2).encode()).hexdigest() 
+                dot.edge(str(self.layers[i][0].node_id), str(self.layers[i][0].right_child), label=self.layers[i][0].right_child_hash)
+
                 self.layers[i-1][0].parent = ctr
                 self.layers[i-1][0].parent_hash = hashlib.sha256(str(ctr).encode()).hexdigest() 
                 self.layers[i-1][1].parent = ctr
@@ -118,8 +117,10 @@ class tree:
                         self.layers[i][j].hashval = hashlib.sha256(str(temp).encode()).hexdigest()
                         self.layers[i][j].left_child = self.layers[i-1][k].node_id
                         self.layers[i][j].left_child_hash= hashlib.sha256(str(hashv1).encode()).hexdigest() 
+                        dot.edge(str(self.layers[i][j].node_id), str(self.layers[i][j].left_child), label=self.layers[i][j].left_child_hash)
                         self.layers[i][j].right_child = self.layers[i-1][k+1].node_id
                         self.layers[i][j].right_child_hash= hashlib.sha256(str(hashv2).encode()).hexdigest() 
+                        dot.edge(str(self.layers[i][j].node_id), str(self.layers[i][j].right_child), label=self.layers[i][j].right_child_hash)
                         self.layers[i-1][k].parent = ctr
                         self.layers[i-1][k].parent_hash = hashlib.sha256(str(ctr).encode()).hexdigest() 
                         self.layers[i-1][k+1].parent = ctr
@@ -128,6 +129,7 @@ class tree:
                         k = k+2
                 
                 len_layer = int(len_layer/2)
+        dot.render('C:/Users/shwetha/Documents/output', format='png')
 
 
     def find_root(self):
@@ -201,13 +203,17 @@ def dsa(input_string):
 input_string = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce vel ex sapien. Integer commodo, mauris non vestibulum euismod, nunc libero elementum ipsum, a dignissim lacus nunc quis nisi. Nam commodo quam lectus, at eleifend nulla bibendum eget. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; Maecenas nec orci vel nulla bibendum congue eu id libero. Ut vel arcu faucibus, bibendum justo non, blandit urna. Sed dictum viverra metus, in rhoncus dolor efficitur eu. Maecenas vulputate eu leo id iaculis. Aenean tincidunt sapien eu est imperdiet, eu accumsan mi pharetra. Nam feugiat vulputate mi, eget faucibus odio pharetra sed. Integer euismod ipsum sit amet mauris tristique varius. Praesent sollicitudin, enim vitae ullamcorper faucibus, nibh lectus gravida est, a luctus dolor orci quis dolor. Duis et justo non quam eleifend efficitur sit amet sit amet velit. Sed ut pulvinar sapien. Sed sagittis enim ut venenatis congue. Integer ut libero augue. Aenean pretium sagittis risus, ut pretium elit feugiat eget. Phasellus in aliquet mi. Suspendisse nec arcu nulla. Sed vitae lacus vel augue pharetra ultrices. Vestibulum rhoncus finibus augue vel dapibus. Proin a justo risus. Nunc sed augue id lacus sollicitudin scelerisque vel at urna. Nullam varius elementum diam, eu feugiat massa consectetur vel. Curabitur convallis ultrices lacus, at accumsan ipsum volutpat eget. Aenean scelerisque orci vel felis volutpat, sit amet iaculis risus semper. Integer vestibulum mi a ante pellentesque, non commodo libero sollicitudin. Sed tempor arcu eget enim rutrum, sed eleifend turpis fringilla. Nullam vitae odio elit. Nullam in nunc libero. Fusce laoreet, enim vel auctor vehicula, lectus nibh elementum est, eget pharetra sapien odio ac metus. Sed euismod nisl felis, sit amet congue lacus imperdiet ac. Pellentesque ac ipsum eu nunc lacinia aliquet. Donec commodo lobortis ipsum, eu bibendum velit commodo ac. Sed euismod sapien lacus, vel consectetur metus dictum vitae. Sed vestibulum scelerisque velit, sed hendrerit nulla bibendum vitae. Phasellus hendrerit, turpis eu dictum consectetur, magna quam luctus odio, id commodo velit velit id quam. Sed feugiat nulla et sem commodo, ut venenatis odio imperdiet. Suspendisse faucibus est sed odio lacinia consectetur. Quisque sed fringilla mi. Sed fermentum eget libero sit amet mollis. Sed luctus nulla ut tortor faucibus, vel consequat purus accumsan"
 t = tree(input_string,[],[],0)
 t.build_tree()
+dot = graphviz.Digraph()
+# create directory to save file
+if not os.path.exists('output'):
+    os.makedirs('output')
+for i in range(33):
+    dot.node(str(i), str(i))
 root = t.find_root()
-#node_id = random.randrange(7)
 node_id=7
 node_hash = t.find_node_from_id(node_id).hashval
 path = t.find_path(node_id)
 found_root = root_from_path(path,node_hash)
-dsa(input_string)
 
 print("\n************************************************************************************")
 print("***************************** Merkle tree using SHA "+ str(leaf_count) +" leaves ****************************")
@@ -242,4 +248,4 @@ else:
 
 print("***************************** Merkle tree using DSA "+ str(leaf_count) +" leaves ****************************")
 
-dsa(input_string)
+#dsa(input_string)
